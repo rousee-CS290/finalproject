@@ -207,9 +207,9 @@ echo '</select>
                 <th>Name
                 <th>Category
                 <th>Length
-                <th>Checked out
+                <th>Status
                 <th>Delete
-                <th>Check-In/Check-Out
+                <th>Change Status
             </tr>";
             
             if ($filter_val === 0){
