@@ -45,8 +45,7 @@ echo "<h1>Welcome to your personal video collection, ".$_SESSION['username']."</
         <p>Name: <input type="text" name="name">
             Category: <input type="text" name="category">
             Length: <input type="text" name="length">
-                    <p><input type="submit" name="AddVideo" value="add a video" class="grnbtn">
-                    <input type="submit" name="Delete" value="delete all videos" class="redbtn"></p>
+                    <p><input type="submit" name="AddVideo" value="add a video" class="grnbtn"></p>
     </fieldset>
     
 </form>
@@ -59,20 +58,21 @@ function checkadd($mysqli){
     $name = $_POST['name'];
     $category = $_POST['category'];
     $length = $_POST['length'];
+    $user = $_SESSION['username'];
     $errorIn_parms = False;
     if (!ctype_digit($length)){
-        echo "Length must be an integer >= 0; not $length.<br>";
+        echo '<div id="error_message">Length must be an integer >= 0; not '.$length.'.<br></div>';
         $errorIn_parms = True;
     }
     if(empty($name)){
-        echo "Name of Video is required.<br>";
+        echo '<div id="error_message">Name of Video is required.<br></div>';
         $errorIn_parms = True;
     } else {
-        if(!($stmt = $mysqli->prepare("SELECT name FROM videos WHERE name = ? ORDER BY name
+        if(!($stmt = $mysqli->prepare("SELECT name, user FROM videos WHERE name = ? AND user = ? ORDER BY name
                 "))){
             echo "Prepare failed: :".$stmt->errno." ".$stmt->error;
         }
-        if(!$stmt->bind_param("s", $name)){
+        if(!$stmt->bind_param("ss", $name, $user)){
             echo "Bind failed: " .$stmt->errno." ".$stmt->error;
         }
         if(!$stmt->execute()){
@@ -80,7 +80,7 @@ function checkadd($mysqli){
         }
         $stmt->store_result();
         if($stmt->num_rows != 0){
-            echo "Name of Video must be unique.<br>";
+            echo '<div id="error_message">Name of Video must be unique.<br></div>';
             $errorIn_parms = True;
         }
         $stmt->close();
@@ -108,12 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'){
     //add a video section
     if (!empty($_POST['AddVideo']) && $_POST['AddVideo'] == 'add a video'){
         checkadd($mysqli);
-        if(!($stmt = $mysqli->prepare("INSERT INTO videos(name, category, length)
-                VALUES (?, ?, ?)
+        if(!($stmt = $mysqli->prepare("INSERT INTO videos(name, category, length, user)
+                VALUES (?, ?, ?, ?)
                 "))) {
             echo "Prepare failed: :".$stmt->errno." ".$stmt->error;
         }
-        if(!$stmt->bind_param("ssi", $_POST['name'], $_POST['category'], $_POST['length'])){
+        if(!$stmt->bind_param("ssis", $_POST['name'], $_POST['category'], $_POST['length'], $_SESSION['username'])){
             echo "Bind failed: " .$stmt->errno." ".$stmt->error;
         }
         if(!$stmt->execute()){
@@ -176,8 +176,11 @@ echo '<form action="./video.php"
         <legend>Filter the Videos</legend>
         <select name="filter">
             <option value="_allmovies_">All Movies</option>';
-            if(!($stmt = $mysqli->prepare("SELECT DISTINCT category FROM videos ORDER BY category"))){
+            if(!($stmt = $mysqli->prepare("SELECT DISTINCT category FROM videos WHERE user = ? ORDER BY category"))){
                 echo "Prepare failed: "  . $stmt->errno . " " . $stmt->error;
+            }
+            if(!$stmt->bind_param("s", $_SESSION['username'])){
+                echo "Bind failed: " .$stmt->errno." ".$stmt->error;
             }
             if(!$stmt->execute()){
                 echo "Execute failed: "  . $stmt->errno . " " . $stmt->error;
@@ -212,22 +215,26 @@ echo '</select>
             if ($filter_val === 0){
                 echo "showing all movies";
                 if(!($stmt = $mysqli->prepare("SELECT v.id, v.name, v.category, v.length, v.rented
-                        FROM videos AS v
+                        FROM videos AS v WHERE user = ?
                         "))){
                     echo "Prepare failed: :".$stmt->errno." ".$stmt->error;
                 }
+                if(!$stmt->bind_param("s", $_SESSION['username'])){
+                    echo "Bind failed: " .$stmt->errno." ".$stmt->error;
+                } 
             } else {
                 echo "showing only $filter_val type movies";
                 if(!($stmt = $mysqli->prepare("SELECT v.id, v.name, v.category, v.length, v.rented
-                        FROM videos AS v
-                        WHERE category = ?
+                        FROM videos AS v WHERE user = ?
+                        AND category = ?
                         "))){
                     echo "Prepare failed: :".$stmt->errno." ".$stmt->error;
                 }
-                if(!$stmt->bind_param("s", $filter_val)){
+                if(!$stmt->bind_param("ss", $_SESSION['username'], $filter_val)){
                     echo "Bind failed: " .$stmt->errno." ".$stmt->error;
                 }
             }
+           
             if(!$stmt->execute()){
                 echo "Execute failed: " .$stmt->errno." ".$stmt->error;
             }
@@ -238,7 +245,7 @@ echo '</select>
             while($stmt->fetch()){
                 echo "<tr>\n<td>\n".$id."\n<td>".$name."\n<td>".$category."\n<td>".$length."\n<td>";
                 if($rented == '1' ){
-                    $rented = 'checked out';
+                    $rented = 'loaned out';
                 } else {
                     $rented = 'available';
                 }

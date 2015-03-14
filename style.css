@@ -22,7 +22,7 @@ body {
     /*overflow: auto;*/
 }
 
-#username_message, #password_message {
+#username_message, #password_message, #error_message {
     text-align: left;
     color: #ff0000;
     text-shadow: 2px 2px 4px #ead4d4;
